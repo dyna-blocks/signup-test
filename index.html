@@ -7,6 +7,7 @@
 </head>
 <body>
     <h2>Sign Up</h2>
+    <input type="text" id="username" placeholder="Username">
     <input type="email" id="email" placeholder="Email">
     <input type="password" id="password" placeholder="Password">
     <button onclick="createAccount()">Sign Up</button>
@@ -17,77 +18,86 @@
     <button onclick="login()">Login</button>
 
     <script type="module">
-        // Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, where } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 
-        // Your Firebase Config
         const firebaseConfig = {
-            apiKey: "AIzaSyA4yRkCYzUDc_GY_ou1UYJ7bIytLa-DwJY",
-            authDomain: "dynablocks-ce7d8.firebaseapp.com",
-            projectId: "dynablocks-ce7d8",
-            storageBucket: "dynablocks-ce7d8.firebasestorage.app",
-            messagingSenderId: "660768350715",
-            appId: "1:660768350715:web:7b0e02afcf6b7f4b0deb5e"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Create Account Function
         async function createAccount() {
+            const username = document.getElementById('username').value;
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            if (!username) {
+                alert("Please enter a username.");
+                return;
+            }
+
+            // Check if username is taken
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("username", "==", username));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                alert("Username is already taken!");
+                return;
+            }
 
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
                 // Get the last user ID and increment it
-                const usersRef = collection(db, "users");
                 const snapshot = await getDocs(usersRef);
-                const lastUserID = snapshot.size; // Number of users = last ID
+                const userID = snapshot.size + 1;
 
                 // Save user data in Firestore
                 await setDoc(doc(usersRef, user.uid), {
+                    username: username,
                     email: user.email,
-                    userID: lastUserID + 1
+                    userID: userID
                 });
 
                 alert("Account created! Redirecting...");
-                window.location.href = `User.html?ID=${lastUserID + 1}`;
-            } catch (error) {
-                alert(error.message);
-            }
-        }
-
-        // Login Function
-        async function login() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-
-            try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                const userDoc = await getDocs(collection(db, "users"));
-                let userID = 0;
-
-                userDoc.forEach((doc) => {
-                    if (doc.id === userCredential.user.uid) {
-                        userID = doc.data().userID;
-                    }
-                });
-
-                alert("Logged in! Redirecting...");
                 window.location.href = `User.html?ID=${userID}`;
             } catch (error) {
                 alert(error.message);
             }
         }
 
-        // Attach functions to global scope
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const userID = userDoc.data().userID;
+                    alert("Logged in! Redirecting...");
+                    window.location.href = `User.html?ID=${userID}`;
+                } else {
+                    alert("User not found!");
+                }
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
         window.createAccount = createAccount;
         window.login = login;
     </script>
